@@ -1,6 +1,7 @@
 # openvpn-manager
 
 [![ShellCheck](https://github.com/shivajichaprana/openvpn-manager/actions/workflows/shellcheck.yml/badge.svg)](https://github.com/shivajichaprana/openvpn-manager/actions/workflows/shellcheck.yml)
+[![Latest Release](https://img.shields.io/github/v/release/shivajichaprana/openvpn-manager)](https://github.com/shivajichaprana/openvpn-manager/releases/latest)
 
 A hardened OpenVPN server installer and management script for Linux.
 

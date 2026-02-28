@@ -12,7 +12,7 @@ readonly OVPN_SERVER_DIR="/etc/openvpn/server"
 readonly CLIENTS_DB="$OVPN_SERVER_DIR/clients.db"
 readonly EASYRSA_DIR="$OVPN_SERVER_DIR/easy-rsa"
 readonly SERVER_CONF="$OVPN_SERVER_DIR/server.conf"
-readonly OVPN_DIR="$HOME"
+OVPN_DIR="$HOME"
 readonly SVC="openvpn-server@server.service"
 readonly EASY_RSA_URL='https://github.com/OpenVPN/easy-rsa/releases/download/v3.2.1/EasyRSA-3.2.1.tgz'
 readonly EASY_RSA_SHA256='ec0fdca46c07afef341e0e0eeb2bf0cfe74a11322b77163e5d764d28cb4eec89'
@@ -25,7 +25,8 @@ readonly MGMT_PORT=7505
 # ─── Argument handling ───────────────────────────────────────────────────────
 # Non-interactive CLI mode — runs a single operation and exits.
 # Interactive menu is used when no arguments are given.
-_cli_cmd=""; _cli_client=""; _cli_days="365"
+_cli_cmd=""; _cli_client=""; _cli_days="365"; _cli_out_dir=""; _cli_json=0
+_expiry_warn_days="${OVPN_WARN_DAYS:-7}"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --version|-v)   echo "openvpn-manager v$VERSION"; exit 0 ;;
@@ -34,25 +35,31 @@ while [[ $# -gt 0 ]]; do
 Usage: bash openvpn-manager.sh [OPTION]
 
 Options (non-interactive):
-  --add-client NAME [--days N]   Add a client (default 365 days)
+  --add-client NAME [--days N] [--output-dir PATH]  Add a client
   --revoke-client NAME           Revoke a client
-  --list-clients                 List active clients
-  --status                       Show server status
+  --list-clients [--json]        List active clients
+  --status [--json]              Show server status
   --revoke-expired               Revoke all expired clients
   --install-timer                Install daily auto-renewal systemd timer
+  --output-dir PATH              Directory for .ovpn output (default: \$HOME)
+  --expiry-warn-days N           Warn N days before expiry (default: 7, env: OVPN_WARN_DAYS)
+  --json                         Output in JSON format (list-clients, status)
   --version                      Print version
   --help                         Show this help
 
 Run without arguments to launch the interactive menu.
 EOF
             exit 0 ;;
-        --add-client)    _cli_cmd="add";    _cli_client="${2:-}"; shift ;;
-        --revoke-client) _cli_cmd="revoke"; _cli_client="${2:-}"; shift ;;
+        --add-client)      _cli_cmd="add";    _cli_client="${2:-}"; shift ;;
+        --revoke-client)   _cli_cmd="revoke"; _cli_client="${2:-}"; shift ;;
         --list-clients)    _cli_cmd="list" ;;
         --status)          _cli_cmd="status" ;;
         --revoke-expired)  _cli_cmd="revoke-expired" ;;
         --install-timer)   _cli_cmd="install-timer" ;;
         --days)            _cli_days="${2:-365}"; shift ;;
+        --output-dir)      _cli_out_dir="${2:-}"; shift ;;
+        --expiry-warn-days) _expiry_warn_days="${2:-7}"; shift ;;
+        --json)            _cli_json=1 ;;
         *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
     shift
@@ -247,9 +254,17 @@ new_client() {
 
     local now _today; printf -v now '%(%s)T' -1
     printf -v _today '%(%Y-%m-%d)T' -1
-    echo "${client}|${_today}|$(( now + expiry_days * SECONDS_PER_DAY ))" >> "$CLIENTS_DB"
+    # flock on DB to prevent concurrent write corruption
+    (
+        exec 9>>"$CLIENTS_DB.lock"
+        flock -x 9
+        echo "${client}|${_today}|$(( now + expiry_days * SECONDS_PER_DAY ))" >> "$CLIENTS_DB"
+    )
     log "Client created: $client (expires in ${expiry_days} days)"
 
+    local _ovpn_dest="${OVPN_DIR}/${client}.ovpn"
+    local _ovpn_tmp; _ovpn_tmp=$(mktemp "${OVPN_DIR}/.${client}.ovpn.XXXXXX")
+    trap 'rm -f "$_ovpn_tmp"' RETURN
     {
         cat "$OVPN_SERVER_DIR/client-common.txt"
         echo "<ca>"; cat "$EASYRSA_DIR/pki/ca.crt"; echo "</ca>"
@@ -260,30 +275,30 @@ new_client() {
         echo "<tls-crypt>"
         awk '/BEGIN OpenVPN Static key/,0' "$OVPN_SERVER_DIR/tc.key"
         echo "</tls-crypt>"
-    } > "$OVPN_DIR/${client}.ovpn"
-
-    chmod 600 "$OVPN_DIR/${client}.ovpn"
+    } > "$_ovpn_tmp"
+    chmod 600 "$_ovpn_tmp"
+    mv "$_ovpn_tmp" "$_ovpn_dest"
 
     if command -v qrencode &>/dev/null; then
         qrencode -t ansiutf8 < "$OVPN_DIR/${client}.ovpn"
         ok "QR code generated above for mobile import."
     fi
 
-    ok "Client config: $OVPN_DIR/${client}.ovpn"
+    ok "Client config: $_ovpn_dest"
 }
 
 check_expired_clients() {
     if [[ ! -f "$CLIENTS_DB" ]]; then return; fi
     local now soon
     printf -v now '%(%s)T' -1
-    soon=$(( now + 7 * SECONDS_PER_DAY ))
+    soon=$(( now + _expiry_warn_days * SECONDS_PER_DAY ))
     awk -F'|' -v now="$now" -v soon="$soon" \
         '$3!="" && now>$3{print "EXPIRED:"$1} $3!="" && soon>$3 && now<=$3{print "SOON:"$1}' \
         "$CLIENTS_DB" | while IFS=: read -r _t _n; do
             if [[ "$_t" == "EXPIRED" ]]; then
                 warn "Client '$_n' certificate has expired. Consider revoking."
             else
-                warn "Client '$_n' certificate expires within 7 days."
+                warn "Client '$_n' certificate expires within ${_expiry_warn_days} days."
             fi
         done
 }
@@ -386,6 +401,7 @@ if [[ -n "$_cli_cmd" ]]; then
             [[ -z "$_cli_client" ]] && err "--add-client requires a name."
             _cli_client=$(sanitize_name "$_cli_client")
             [[ -z "$_cli_client" ]] && err "Invalid client name."
+            [[ -n "$_cli_out_dir" ]] && OVPN_DIR="$_cli_out_dir"
             new_client "$_cli_client" "$_cli_days"
             ;;
         revoke)
@@ -394,10 +410,25 @@ if [[ -n "$_cli_cmd" ]]; then
             reload_service
             ;;
         list)
-            get_clients
+            if [[ "$_cli_json" -eq 1 ]]; then
+                get_clients | awk 'BEGIN{printf "["} NR>1{printf ","} {printf "{\"name\":\"%s\"}",$0} END{print "]"}'  
+            else
+                get_clients
+            fi
             ;;
         status)
-            show_status
+            if [[ "$_cli_json" -eq 1 ]]; then
+                local s_port s_proto s_cipher
+                IFS='|' read -r s_port s_proto s_cipher _ < <(
+                    awk '/^port /{p=$2} /^proto /{r=$2} /^cipher /{c=$2} END{printf "%s|%s|%s\n",p,r,c}' "$SERVER_CONF"
+                )
+                local s_ver; s_ver=$(openvpn --version 2>/dev/null | awk 'NR==1{print $2; exit}') || s_ver="unknown"
+                local s_active; s_active=$(systemctl is-active "$SVC" 2>/dev/null || echo "unknown")
+                printf '{"version":"%s","status":"%s","port":"%s","proto":"%s","cipher":"%s"}\n' \
+                    "$s_ver" "$s_active" "${s_port:-?}" "${s_proto:-?}" "${s_cipher:-?}"
+            else
+                show_status
+            fi
             ;;
         revoke-expired)
             if [[ ! -f "$CLIENTS_DB" || ! -s "$CLIENTS_DB" ]]; then log "No clients in DB."; exit 0; fi
