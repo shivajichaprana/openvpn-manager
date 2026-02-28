@@ -25,7 +25,7 @@ readonly MGMT_PORT=7505
 # ─── Argument handling ───────────────────────────────────────────────────────
 # Non-interactive CLI mode — runs a single operation and exits.
 # Interactive menu is used when no arguments are given.
-_cli_cmd=""; _cli_client=""; _cli_days="365"; _cli_out_dir=""; _cli_json=0
+_cli_cmd=""; _cli_client=""; _cli_days="365"; _cli_out_dir=""; _cli_json=0; _cli_dry_run=0
 _expiry_warn_days="${OVPN_WARN_DAYS:-7}"
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -44,6 +44,7 @@ Options (non-interactive):
   --output-dir PATH              Directory for .ovpn output (default: \$HOME)
   --expiry-warn-days N           Warn N days before expiry (default: 7, env: OVPN_WARN_DAYS)
   --json                         Output in JSON format (list-clients, status)
+  --dry-run                      Preview revoke-expired without making changes
   --version                      Print version
   --help                         Show this help
 
@@ -60,6 +61,7 @@ EOF
         --output-dir)      _cli_out_dir="${2:-}"; shift ;;
         --expiry-warn-days) _expiry_warn_days="${2:-7}"; shift ;;
         --json)            _cli_json=1 ;;
+        --dry-run)         _cli_dry_run=1 ;;
         *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
     shift
@@ -175,6 +177,13 @@ get_ipv4_list() {
 }
 get_ipv6_list() { ip -6 -o addr | awk '$4~/^[23]/{gsub(/\/.*$/,"",$4); print $4}'; }
 
+# ─── DB integrity check ─────────────────────────────────────────────────────
+check_db_integrity() {
+    [[ -f "$CLIENTS_DB" ]] || return 0
+    local bad; bad=$(awk -F'|' 'NF<2{print NR}' "$CLIENTS_DB")
+    [[ -n "$bad" ]] && warn "clients.db may be corrupt (bad lines: $bad). Consider restoring from backup."
+}
+
 # ─── Pre-flight checks ───────────────────────────────────────────────────────
 read -t 0 -N 999999 || true
 
@@ -263,7 +272,7 @@ new_client() {
     log "Client created: $client (expires in ${expiry_days} days)"
 
     local _ovpn_dest="${OVPN_DIR}/${client}.ovpn"
-    local _ovpn_tmp; _ovpn_tmp=$(mktemp "${OVPN_DIR}/.${client}.ovpn.XXXXXX")
+    local _ovpn_tmp; _ovpn_tmp=$(umask 077; mktemp "${OVPN_DIR}/.${client}.ovpn.XXXXXX")
     trap 'rm -f "$_ovpn_tmp"' RETURN
     {
         cat "$OVPN_SERVER_DIR/client-common.txt"
@@ -396,6 +405,7 @@ do_revoke() {
 # ─── CLI dispatch (non-interactive) ─────────────────────────────────────────
 if [[ -n "$_cli_cmd" ]]; then
     [[ -e "$SERVER_CONF" ]] || err "OpenVPN is not installed. Run without arguments to install."
+    check_db_integrity
     case "$_cli_cmd" in
         add)
             [[ -z "$_cli_client" ]] && err "--add-client requires a name."
@@ -437,6 +447,11 @@ if [[ -n "$_cli_cmd" ]]; then
                 awk -F'|' -v now="$now" 'NR==FNR{a[$1]=1;next} $3!="" && now>$3 && ($1 in a){print $1}' \
                     <(get_clients) "$CLIENTS_DB"
             )
+            if [[ "$_cli_dry_run" -eq 1 ]]; then
+                echo "[dry-run] Would revoke ${#_exp[@]} client(s):"
+                for _n in "${_exp[@]}"; do echo "  - $_n"; done
+                exit 0
+            fi
             for _n in "${_exp[@]}"; do do_revoke "$_n"; (( _count++ )) || true; done
             [[ "$_count" -gt 0 ]] && reload_service
             log "Auto-revoke: $_count expired client(s) revoked."
@@ -840,6 +855,7 @@ else
     while true; do
     clear
     info "OpenVPN is already installed."
+    check_db_integrity
     check_expired_clients
     echo
     echo "Select an option:"
