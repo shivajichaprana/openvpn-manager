@@ -1,0 +1,24 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bump VERSION in script
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          sed -i "s/^readonly VERSION=.*/readonly VERSION=\"$TAG\"/" openvpn-manager.sh
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: openvpn-manager.sh
+          generate_release_notes: true

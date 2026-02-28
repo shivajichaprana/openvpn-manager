@@ -27,6 +27,7 @@ readonly MGMT_PORT=7505
 # Interactive menu is used when no arguments are given.
 _cli_cmd=""; _cli_client=""; _cli_days="365"; _cli_out_dir=""; _cli_json=0; _cli_dry_run=0
 _expiry_warn_days="${OVPN_WARN_DAYS:-7}"
+_notify_cmd="${OVPN_NOTIFY_CMD:-}"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --version|-v)   echo "openvpn-manager v$VERSION"; exit 0 ;;
@@ -45,6 +46,7 @@ Options (non-interactive):
   --expiry-warn-days N           Warn N days before expiry (default: 7, env: OVPN_WARN_DAYS)
   --json                         Output in JSON format (list-clients, status)
   --dry-run                      Preview revoke-expired without making changes
+  --notify CMD                   Run CMD with client name after each revocation (env: OVPN_NOTIFY_CMD)
   --version                      Print version
   --help                         Show this help
 
@@ -62,6 +64,7 @@ EOF
         --expiry-warn-days) _expiry_warn_days="${2:-7}"; shift ;;
         --json)            _cli_json=1 ;;
         --dry-run)         _cli_dry_run=1 ;;
+        --notify)          _notify_cmd="${2:-}"; shift ;;
         *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
     shift
@@ -452,7 +455,11 @@ if [[ -n "$_cli_cmd" ]]; then
                 for _n in "${_exp[@]}"; do echo "  - $_n"; done
                 exit 0
             fi
-            for _n in "${_exp[@]}"; do do_revoke "$_n"; (( _count++ )) || true; done
+            for _n in "${_exp[@]}"; do
+                do_revoke "$_n"
+                [[ -n "$_notify_cmd" ]] && eval "$_notify_cmd" "$_n" || true
+                (( _count++ )) || true
+            done
             [[ "$_count" -gt 0 ]] && reload_service
             log "Auto-revoke: $_count expired client(s) revoked."
             ;;
