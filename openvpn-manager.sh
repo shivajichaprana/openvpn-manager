@@ -247,7 +247,7 @@ new_client() {
     if [[ "$expiry_days" -gt 3650 ]]; then warn "Expiry capped at 3650 days."; expiry_days=3650; fi
     if [[ -e "$EASYRSA_DIR/pki/issued/${client}.crt" ]]; then err "Client '$client' already exists."; fi
 
-    ( cd "$EASYRSA_DIR" && EASYRSA_CERT_EXPIRE="$expiry_days" run ./easyrsa build-client-full "$client" nopass )
+    ( cd "$EASYRSA_DIR" && EASYRSA_CERT_EXPIRE="$expiry_days" run ./easyrsa --batch build-client-full "$client" nopass )
 
     local key_block
     if [[ -n "$passphrase" ]]; then
