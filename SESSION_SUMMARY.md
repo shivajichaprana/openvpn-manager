@@ -48,13 +48,12 @@ rm -f /tmp/openvpn-test.pem
 ## Install State on EC2
 - OpenVPN installed and running (`active` since 2026-02-28 13:43:57 UTC)
 - Script at `~/openvpn-manager.sh` is up to date (latest commit deployed)
-- **Current clients on instance** (as of last test):
-  - `testclient` — expires 2027-02-28
-  - `bob` — expires 2026-03-01 (1 day), `.ovpn` at `/tmp/bob.ovpn`
-  - `menutest` — created via menu option 1
-  - `bulk1`, `bulk2` — created via menu option 2 (first run, skipped second)
-  - `bulkA`, `bulkB` — created via menu option 2 (second run)
-  - `alice` — **revoked** via `--revoke-client`
+- **Current active clients on instance**:
+  - `testclient` — renewed via menu 8, expires ~2027-02-28
+  - `bulk2` — expires 2026-03-01
+  - `bulkA` — expires 2026-03-01
+  - `bulkB` — expires 2026-03-01
+- **Revoked clients**: `alice`, `menutest`, `bob`, `bulk1`, `expiredtest`
 
 ---
 
@@ -85,12 +84,12 @@ rm -f /tmp/openvpn-test.pem
 |---|--------|--------|-------|
 | 1 | Add client | ✅ PASS | Created `menutest.ovpn` successfully |
 | 2 | Bulk add clients | ✅ PASS | Created `bulkA`, `bulkB` — `2 client(s) created` |
-| 3 | Revoke client | ❌ NOT TESTED | |
-| 4 | Bulk revoke | ❌ NOT TESTED | |
-| 5 | Revoke all expired | ❌ NOT TESTED | |
-| 6 | Show server status | ❌ NOT TESTED | |
+| 3 | Revoke client | ✅ PASS | Revoked `menutest` (client #3) |
+| 4 | Bulk revoke | ✅ PASS | Revoked `bob` + `bulk1` — `2 client(s) revoked` |
+| 5 | Revoke all expired | ✅ PASS | Revoked `expiredtest` (backdated to 2020) — `1 expired client(s) revoked` |
+| 6 | Show server status | ✅ PASS | Port/Protocol/Cipher/Version/Connected all shown correctly |
 | 7 | Remove OpenVPN | ❌ NOT TESTED | Test last — destructive |
-| 8 | Renew client cert | ❌ NOT TESTED | `cd EASYRSA_DIR` fix applied |
+| 8 | Renew client cert | ✅ PASS | Renewed `testclient` — new `.ovpn` created |
 | 9 | Client connection history | ❌ NOT TESTED | |
 | 10 | Restart/Reload | ❌ NOT TESTED | |
 | 11 | Backup & Restore | ❌ NOT TESTED | |
@@ -108,7 +107,7 @@ rm -f /tmp/openvpn-test.pem
 | 23 | Change port/protocol | ❌ NOT TESTED | |
 | 24 | List revoked clients | ❌ NOT TESTED | |
 
-**Next to test: Menu option 3 (Revoke client)**
+**Next to test: Menu option 9 (Client connection history)**
 
 ---
 
