@@ -28,6 +28,13 @@ A hardened OpenVPN server installer and management script for Linux.
 | openSUSE | latest |
 | Amazon Linux | 2 / 2023 |
 
+## Quick Install
+
+```bash
+wget -O openvpn-manager.sh https://raw.githubusercontent.com/shivajichaprana/openvpn-manager/main/openvpn-manager.sh
+bash openvpn-manager.sh
+```
+
 ## Usage
 
 ```bash
@@ -56,6 +63,7 @@ Run as root. On first run it installs OpenVPN. On subsequent runs it opens the m
 | 14 | Disconnect a client |
 | 15 | View live logs |
 | 16 | Update EasyRSA |
+| 17 | Install/refresh auto-renewal timer |
 | 18 | Export client .ovpn via SCP |
 | 19 | Rename a client |
 | 20 | Bandwidth usage per client |
