@@ -38,6 +38,8 @@ Options (non-interactive):
   --revoke-client NAME           Revoke a client
   --list-clients                 List active clients
   --status                       Show server status
+  --revoke-expired               Revoke all expired clients
+  --install-timer                Install daily auto-renewal systemd timer
   --version                      Print version
   --help                         Show this help
 
@@ -46,9 +48,11 @@ EOF
             exit 0 ;;
         --add-client)    _cli_cmd="add";    _cli_client="${2:-}"; shift ;;
         --revoke-client) _cli_cmd="revoke"; _cli_client="${2:-}"; shift ;;
-        --list-clients)  _cli_cmd="list" ;;
-        --status)        _cli_cmd="status" ;;
-        --days)          _cli_days="${2:-365}"; shift ;;
+        --list-clients)    _cli_cmd="list" ;;
+        --status)          _cli_cmd="status" ;;
+        --revoke-expired)  _cli_cmd="revoke-expired" ;;
+        --install-timer)   _cli_cmd="install-timer" ;;
+        --days)            _cli_days="${2:-365}"; shift ;;
         *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
     shift
@@ -330,6 +334,35 @@ show_status() {
     check_expired_clients
 }
 
+# ─── Auto-renewal timer ─────────────────────────────────────────────────────
+install_renewal_timer() {
+    local script_path; script_path=$(readlink -f "$0")
+    cat > /etc/systemd/system/openvpn-autorenewal.service <<EOF
+[Unit]
+Description=OpenVPN auto-revoke expired certificates
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash $script_path --revoke-expired
+EOF
+    cat > /etc/systemd/system/openvpn-autorenewal.timer <<'EOF'
+[Unit]
+Description=Daily OpenVPN certificate expiry check
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+    systemctl daemon-reload
+    systemctl enable --now openvpn-autorenewal.timer
+    ok "Auto-renewal timer installed and enabled (daily)."
+    log "Auto-renewal timer installed."
+}
+
 # ─── Revoke helper ───────────────────────────────────────────────────────────
 do_revoke() {
     local client="$1"
@@ -365,6 +398,20 @@ if [[ -n "$_cli_cmd" ]]; then
             ;;
         status)
             show_status
+            ;;
+        revoke-expired)
+            if [[ ! -f "$CLIENTS_DB" || ! -s "$CLIENTS_DB" ]]; then log "No clients in DB."; exit 0; fi
+            printf -v now '%(%s)T' -1; _count=0
+            mapfile -t _exp < <(
+                awk -F'|' -v now="$now" 'NR==FNR{a[$1]=1;next} $3!="" && now>$3 && ($1 in a){print $1}' \
+                    <(get_clients) "$CLIENTS_DB"
+            )
+            for _n in "${_exp[@]}"; do do_revoke "$_n"; (( _count++ )) || true; done
+            [[ "$_count" -gt 0 ]] && reload_service
+            log "Auto-revoke: $_count expired client(s) revoked."
+            ;;
+        install-timer)
+            install_renewal_timer
             ;;
     esac
     exit 0
@@ -781,6 +828,7 @@ else
     echo "   14) Disconnect a client"
     echo "   15) View live logs"
     echo "   16) Update EasyRSA"
+    echo "   17) Install/refresh auto-renewal timer"
     echo "   18) Export client .ovpn via SCP"
     echo "   19) Rename a client"
     echo "   20) Bandwidth usage per client"
@@ -790,7 +838,7 @@ else
     echo "   24) List revoked clients"
     echo "   0) Exit"
     read -rp "Option: " option
-    until [[ "$option" =~ ^(0|[1-9]|1[0-6]|1[89]|2[0-4])$ ]]; do
+    until [[ "$option" =~ ^(0|[1-9]|1[0-7]|1[89]|2[0-4])$ ]]; do
         echo "$option: invalid selection."
         read -rp "Option: " option
     done
@@ -1131,6 +1179,9 @@ else
             log "EasyRSA updated: $cur_ver -> $new_ver"
             ;;
         0) exit ;;
+        17)
+            install_renewal_timer
+            ;;
         18)
             pick_client "Client to export" || continue
             scp_client="$PICKED_CLIENT"
