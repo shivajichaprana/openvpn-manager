@@ -7,6 +7,7 @@ set -euo pipefail
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 readonly LOG_FILE="/var/log/openvpn-manager.log"
+readonly VERSION="1.0.0"
 readonly OVPN_SERVER_DIR="/etc/openvpn/server"
 readonly CLIENTS_DB="$OVPN_SERVER_DIR/clients.db"
 readonly EASYRSA_DIR="$OVPN_SERVER_DIR/easy-rsa"
@@ -20,6 +21,17 @@ readonly VPN_SUBNET_CIDR="10.8.0.0/24"
 readonly VPN_SUBNET6="fddd:1194:1194:1194::/64"
 readonly SECONDS_PER_DAY=86400
 readonly MGMT_PORT=7505
+
+# ─── Argument handling ───────────────────────────────────────────────────────
+for _arg in "$@"; do
+    case "$_arg" in
+        --version|-v) echo "openvpn-manager v$VERSION"; exit 0 ;;
+        --help|-h)
+            echo "Usage: bash openvpn-manager.sh [--version] [--help]"
+            echo "  Run without arguments to launch the interactive menu."
+            exit 0 ;;
+    esac
+done
 
 # ─── Colors ──────────────────────────────────────────────────────────────────
 readonly RED='\033[0;31m'; readonly GREEN='\033[0;32m'; readonly YELLOW='\033[1;33m'; readonly CYAN='\033[0;36m'; readonly NC='\033[0m'
