@@ -1125,10 +1125,10 @@ else
                     echo "Aborted."; pause; continue
                 fi
                 # Validate archive contains our expected path before overwriting anything
-                tar -tzf "$restore_file" 2>/dev/null | grep -q "openvpn/server" \
-                    || err "Backup does not appear to be a valid OpenVPN backup: $restore_file"
+                { tar -tzf "$restore_file" 2>/dev/null || true; } | grep -q "openvpn/server" \
+                    || { warn "Backup does not appear to be a valid OpenVPN backup: $restore_file"; pause; continue; }
                 systemctl stop "$SVC" 2>/dev/null || true
-                tar -xzf "$restore_file" -C / 2>/dev/null || err "Restore failed."
+                tar -xzf "$restore_file" -C / 2>/dev/null || { warn "Restore failed."; pause; continue; }
                 systemctl start "$SVC"
                 ok "Restore complete."
                 log "Restored from: $restore_file"
