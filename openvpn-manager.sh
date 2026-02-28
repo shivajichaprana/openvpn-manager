@@ -328,7 +328,7 @@ show_status() {
         # Single awk pass over SERVER_CONF extracts port, proto, cipher, and DNS servers
         IFS='|' read -r s_port s_proto s_cipher s_dns < <(
             awk '/^port /{p=$2} /^proto /{r=$2} /^cipher /{c=$2}
-                 /dhcp-option DNS/{d=(d?d",":"")$NF}
+                 /dhcp-option DNS/{gsub(/"/,"",$NF); d=(d?d",":"")$NF}
                  END{printf "%s|%s|%s|%s\n",p,r,c,d}' "$SERVER_CONF"
         )
         s_ver=$(openvpn --version 2>/dev/null | awk 'NR==1{print $2; exit}') || s_ver="unknown"
@@ -431,12 +431,12 @@ if [[ -n "$_cli_cmd" ]]; then
             ;;
         status)
             if [[ "$_cli_json" -eq 1 ]]; then
-                local s_port s_proto s_cipher
+                s_port=""; s_proto=""; s_cipher=""
                 IFS='|' read -r s_port s_proto s_cipher _ < <(
                     awk '/^port /{p=$2} /^proto /{r=$2} /^cipher /{c=$2} END{printf "%s|%s|%s\n",p,r,c}' "$SERVER_CONF"
                 )
-                local s_ver; s_ver=$(openvpn --version 2>/dev/null | awk 'NR==1{print $2; exit}') || s_ver="unknown"
-                local s_active; s_active=$(systemctl is-active "$SVC" 2>/dev/null || echo "unknown")
+                s_ver=$(openvpn --version 2>/dev/null | awk 'NR==1{print $2; exit}') || s_ver="unknown"
+                s_active=$(systemctl is-active "$SVC" 2>/dev/null || echo "unknown")
                 printf '{"version":"%s","status":"%s","port":"%s","proto":"%s","cipher":"%s"}\n' \
                     "$s_ver" "$s_active" "${s_port:-?}" "${s_proto:-?}" "${s_cipher:-?}"
             else
