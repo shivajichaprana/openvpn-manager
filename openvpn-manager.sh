@@ -457,7 +457,7 @@ if [[ -n "$_cli_cmd" ]]; then
             fi
             for _n in "${_exp[@]}"; do
                 do_revoke "$_n"
-                [[ -n "$_notify_cmd" ]] && eval "$_notify_cmd" "$_n" || true
+                if [[ -n "$_notify_cmd" ]]; then eval "$_notify_cmd" "$_n"; fi
                 (( _count++ )) || true
             done
             [[ "$_count" -gt 0 ]] && reload_service
