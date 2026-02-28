@@ -83,3 +83,7 @@ Run as root. On first run it installs OpenVPN. On subsequent runs it opens the m
 
 - Manager log: `/var/log/openvpn-manager.log`
 - OpenVPN log: `/var/log/openvpn.log`
+
+## CLI Reference
+
+See [docs/usage.md](docs/usage.md) for all non-interactive flags and examples.

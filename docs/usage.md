@@ -17,6 +17,7 @@ All flags run non-interactively and exit. Omit flags to launch the interactive m
 | `--expiry-warn-days N` | Warn N days before expiry (default: 7, env: `OVPN_WARN_DAYS`) |
 | `--json` | JSON output for `--list-clients` and `--status` |
 | `--dry-run` | Preview `--revoke-expired` without making changes |
+| `--notify CMD` | Run `CMD <client>` after each revocation |
 | `--version` | Print version |
 | `--help` | Show help |
 
@@ -50,3 +51,4 @@ bash openvpn-manager.sh --expiry-warn-days 14 --status
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OVPN_WARN_DAYS` | `7` | Days before expiry to start warning |
+| `OVPN_NOTIFY_CMD` | `` | Command to run after each auto-revocation (receives client name as arg) |
