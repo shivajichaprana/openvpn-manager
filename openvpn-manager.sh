@@ -397,7 +397,7 @@ do_revoke() {
         warn "Certificate not found for '$client'; skipping revocation."
         return 1
     fi
-    run "$EASYRSA_DIR/easyrsa" --batch revoke "$client"
+    ( cd "$EASYRSA_DIR" && run ./easyrsa --batch revoke "$client" )
     crl_update
     rm -f "$OVPN_DIR/${client}.ovpn"
     sed -i "/^$(sed_escape "$client")|/d" "$CLIENTS_DB" 2>/dev/null || warn "Could not remove $client from DB."
@@ -1037,7 +1037,7 @@ else
             client="$PICKED_CLIENT"
             renew_days=$(read_days)
             echo; if confirm "Confirm renewal of '$client'"; then
-                run "$EASYRSA_DIR/easyrsa" --batch revoke "$client"
+                ( cd "$EASYRSA_DIR" && run ./easyrsa --batch revoke "$client" )
                 crl_update
                 rm -f "$OVPN_DIR/${client}.ovpn"
                 sed -i "/^$(sed_escape "$client")|/d" "$CLIENTS_DB" 2>/dev/null || warn "Could not remove $client from DB."
