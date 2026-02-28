@@ -184,7 +184,7 @@ get_ipv6_list() { ip -6 -o addr | awk '$4~/^[23]/{gsub(/\/.*$/,"",$4); print $4}
 check_db_integrity() {
     [[ -f "$CLIENTS_DB" ]] || return 0
     local bad; bad=$(awk -F'|' 'NF<2{print NR}' "$CLIENTS_DB")
-    [[ -n "$bad" ]] && warn "clients.db may be corrupt (bad lines: $bad). Consider restoring from backup."
+    if [[ -n "$bad" ]]; then warn "clients.db may be corrupt (bad lines: $bad). Consider restoring from backup."; fi
 }
 
 # ─── Pre-flight checks ───────────────────────────────────────────────────────
