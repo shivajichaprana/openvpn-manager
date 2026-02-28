@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(bash -n \"/Users/shivajichaprana/Desktop/Office Work/OpenVPN Automation/openvpn.sh\")"
-    ]
-  }
-}
