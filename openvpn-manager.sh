@@ -7,7 +7,7 @@ set -euo pipefail
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 readonly LOG_FILE="/var/log/openvpn-manager.log"
-readonly VERSION="1.0.0"
+readonly VERSION="1.4.0"
 readonly OVPN_SERVER_DIR="/etc/openvpn/server"
 readonly CLIENTS_DB="$OVPN_SERVER_DIR/clients.db"
 readonly EASYRSA_DIR="$OVPN_SERVER_DIR/easy-rsa"
@@ -306,13 +306,13 @@ check_expired_clients() {
     soon=$(( now + _expiry_warn_days * SECONDS_PER_DAY ))
     awk -F'|' -v now="$now" -v soon="$soon" \
         '$3!="" && now>$3{print "EXPIRED:"$1} $3!="" && soon>$3 && now<=$3{print "SOON:"$1}' \
-        "$CLIENTS_DB" | while IFS=: read -r _t _n; do
+        "$CLIENTS_DB" | while IFS=: read -r _t _n || [[ -n "$_t" ]]; do
             if [[ "$_t" == "EXPIRED" ]]; then
                 warn "Client '$_n' certificate has expired. Consider revoking."
             else
                 warn "Client '$_n' certificate expires within ${_expiry_warn_days} days."
             fi
-        done
+        done || true
 }
 
 show_status() {
@@ -394,8 +394,8 @@ EOF
 do_revoke() {
     local client="$1"
     if [[ ! -f "$EASYRSA_DIR/pki/issued/${client}.crt" ]]; then
-        warn "Certificate not found for '$client'; skipping revocation."
-        return 1
+        warn "Certificate not found for '$client'; skipping."
+        return 0
     fi
     ( cd "$EASYRSA_DIR" && run ./easyrsa --batch revoke "$client" )
     crl_update
@@ -457,7 +457,7 @@ if [[ -n "$_cli_cmd" ]]; then
             fi
             for _n in "${_exp[@]}"; do
                 do_revoke "$_n"
-                if [[ -n "$_notify_cmd" ]]; then eval "$_notify_cmd" "$_n"; fi
+                if [[ -n "$_notify_cmd" ]]; then $_notify_cmd "$_n"; fi
                 (( _count++ )) || true
             done
             [[ "$_count" -gt 0 ]] && reload_service
@@ -1230,6 +1230,7 @@ else
             log "EasyRSA updated: $cur_ver -> $new_ver"
             ;;
         0) exit ;;
+
         17)
             install_renewal_timer
             ;;
