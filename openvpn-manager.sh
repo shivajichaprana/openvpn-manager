@@ -620,9 +620,9 @@ if [[ ! -e "$SERVER_CONF" ]]; then
             qrencode logrotate \
             ${firewall:-}
     elif [[ "$os" == "amzn" && "$os_version" == "2023" ]]; then
-        run dnf install -y \
+        run dnf install -y --allowerasing \
             openvpn openssl ca-certificates \
-            wget curl tar iproute \
+            wget tar iproute \
             iptables iptables-services \
             qrencode logrotate \
             ${firewall:-}
@@ -669,7 +669,7 @@ EOF
     ( cd "$EASYRSA_DIR"
       run ./easyrsa init-pki
       run ./easyrsa --batch build-ca nopass
-      EASYRSA_CERT_EXPIRE=3650 run ./easyrsa build-server-full server nopass
+      EASYRSA_CERT_EXPIRE=3650 run ./easyrsa --batch build-server-full server nopass
       EASYRSA_CRL_DAYS=3650 run ./easyrsa gen-crl
       cp pki/ca.crt pki/issued/server.crt pki/private/server.key pki/crl.pem "$OVPN_SERVER_DIR"
     )
