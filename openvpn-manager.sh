@@ -23,14 +23,35 @@ readonly SECONDS_PER_DAY=86400
 readonly MGMT_PORT=7505
 
 # ─── Argument handling ───────────────────────────────────────────────────────
-for _arg in "$@"; do
-    case "$_arg" in
-        --version|-v) echo "openvpn-manager v$VERSION"; exit 0 ;;
+# Non-interactive CLI mode — runs a single operation and exits.
+# Interactive menu is used when no arguments are given.
+_cli_cmd=""; _cli_client=""; _cli_days="365"
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version|-v)   echo "openvpn-manager v$VERSION"; exit 0 ;;
         --help|-h)
-            echo "Usage: bash openvpn-manager.sh [--version] [--help]"
-            echo "  Run without arguments to launch the interactive menu."
+            cat <<EOF
+Usage: bash openvpn-manager.sh [OPTION]
+
+Options (non-interactive):
+  --add-client NAME [--days N]   Add a client (default 365 days)
+  --revoke-client NAME           Revoke a client
+  --list-clients                 List active clients
+  --status                       Show server status
+  --version                      Print version
+  --help                         Show this help
+
+Run without arguments to launch the interactive menu.
+EOF
             exit 0 ;;
+        --add-client)    _cli_cmd="add";    _cli_client="${2:-}"; shift ;;
+        --revoke-client) _cli_cmd="revoke"; _cli_client="${2:-}"; shift ;;
+        --list-clients)  _cli_cmd="list" ;;
+        --status)        _cli_cmd="status" ;;
+        --days)          _cli_days="${2:-365}"; shift ;;
+        *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
+    shift
 done
 
 # ─── Colors ──────────────────────────────────────────────────────────────────
@@ -323,6 +344,31 @@ do_revoke() {
     ok "$client revoked!"
     log "Client revoked: $client"
 }
+
+# ─── CLI dispatch (non-interactive) ─────────────────────────────────────────
+if [[ -n "$_cli_cmd" ]]; then
+    [[ -e "$SERVER_CONF" ]] || err "OpenVPN is not installed. Run without arguments to install."
+    case "$_cli_cmd" in
+        add)
+            [[ -z "$_cli_client" ]] && err "--add-client requires a name."
+            _cli_client=$(sanitize_name "$_cli_client")
+            [[ -z "$_cli_client" ]] && err "Invalid client name."
+            new_client "$_cli_client" "$_cli_days"
+            ;;
+        revoke)
+            [[ -z "$_cli_client" ]] && err "--revoke-client requires a name."
+            do_revoke "$_cli_client"
+            reload_service
+            ;;
+        list)
+            get_clients
+            ;;
+        status)
+            show_status
+            ;;
+    esac
+    exit 0
+fi
 
 # ─── Fresh Installation ───────────────────────────────────────────────────────
 if [[ ! -e "$SERVER_CONF" ]]; then
