@@ -5,11 +5,11 @@
 - **Branch**: `main`
 - **Latest tag**: `v1.3.1` (next will be `v1.4.0`)
 - **Latest commits**:
+  - `399879f` — "fix: menu 11 restore — pipefail breaks tar|grep validation, err exits script mid-menu"
+  - `5d4585c` — "fix: menu 10 reload uses reload_service() with restart fallback instead of bare systemctl reload"
   - `0dd6909` — "fix: cd into EASYRSA_DIR before easyrsa revoke in do_revoke and menu option 8"
   - `b24d27a` — "fix: local keyword in CLI dispatch (not in function), strip trailing quote from DNS in show_status"
   - `33d7441` — "fix: check_db_integrity exits 1 under set -e when DB is clean (replace && with if-then)"
-  - `38e4679` — "fix: add --batch to build-client-full to suppress EasyRSA interactive prompt"
-  - `7c6bb08` — "fix: AL2023 curl-minimal conflict (--allowerasing, drop curl), EasyRSA --batch for server cert"
 - **AWS profile**: `bahubali` (account `975050061334`, IAM user `terraform`)
 - **Script path**: `/Users/shivajichaprana/Desktop/Office Work/OpenVPN Automation/openvpn-manager.sh`
 
@@ -90,9 +90,9 @@ rm -f /tmp/openvpn-test.pem
 | 6 | Show server status | ✅ PASS | Port/Protocol/Cipher/Version/Connected all shown correctly |
 | 7 | Remove OpenVPN | ❌ NOT TESTED | Test last — destructive |
 | 8 | Renew client cert | ✅ PASS | Renewed `testclient` — new `.ovpn` created |
-| 9 | Client connection history | ❌ NOT TESTED | |
-| 10 | Restart/Reload | ❌ NOT TESTED | |
-| 11 | Backup & Restore | ❌ NOT TESTED | |
+| 9 | Client connection history | ✅ PASS | No connections yet — headers shown correctly |
+| 10 | Restart/Reload | ✅ PASS | Reload falls back to restart (fixed), restart works |
+| 11 | Backup & Restore | ✅ PASS | Backup created, restore from list works (2 bugs fixed) |
 | 12 | QR code | ❌ NOT TESTED | |
 | 13 | Change client expiry | ❌ NOT TESTED | |
 | 14 | Disconnect client | ❌ NOT TESTED | |
@@ -107,7 +107,7 @@ rm -f /tmp/openvpn-test.pem
 | 23 | Change port/protocol | ❌ NOT TESTED | |
 | 24 | List revoked clients | ❌ NOT TESTED | |
 
-**Next to test: Menu option 9 (Client connection history)**
+**Next to test: Menu option 12 (QR code)**
 
 ---
 
@@ -122,6 +122,8 @@ rm -f /tmp/openvpn-test.pem
 | `b24d27a` | `local` keyword used outside function in CLI dispatch | Replaced with plain variable assignments |
 | `b24d27a` | DNS value in `show_status` has trailing `"` | Added `gsub(/"/,"")` in awk |
 | `0dd6909` | `easyrsa revoke` fails — runs from wrong dir, PKI not found | Added `cd "$EASYRSA_DIR" &&` in `do_revoke` and menu option 8 |
+| `5d4585c` | Menu 10 reload calls `systemctl reload` directly — fails on AL2023, exits with error | Use `reload_service()` which has restart fallback |
+| `399879f` | Menu 11 restore — `pipefail` breaks `tar\|grep` validation; `err` exits script mid-menu | Neutralise tar exit code with `\|\| true`; replace `err` with `warn+pause+continue` |
 
 ---
 
