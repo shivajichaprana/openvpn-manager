@@ -47,9 +47,14 @@ rm -f /tmp/openvpn-test.pem
 
 ## Install State on EC2
 - OpenVPN installed and running (`active` since 2026-02-28 13:43:57 UTC)
-- `testclient` registered in `clients.db` (expires 2027-02-28)
-- `alice` was added then revoked (for CLI testing)
 - Script at `~/openvpn-manager.sh` is up to date (latest commit deployed)
+- **Current clients on instance** (as of last test):
+  - `testclient` — expires 2027-02-28
+  - `bob` — expires 2026-03-01 (1 day), `.ovpn` at `/tmp/bob.ovpn`
+  - `menutest` — created via menu option 1
+  - `bulk1`, `bulk2` — created via menu option 2 (first run, skipped second)
+  - `bulkA`, `bulkB` — created via menu option 2 (second run)
+  - `alice` — **revoked** via `--revoke-client`
 
 ---
 
@@ -65,11 +70,11 @@ rm -f /tmp/openvpn-test.pem
 | `--revoke-expired --dry-run` | ✅ PASS | `[dry-run] Would revoke 0 client(s)` |
 | `--install-timer` | ✅ PASS | Timer installed and enabled |
 | `--revoke-client alice` | ✅ PASS | Revokes cert, updates CRL |
-| `--version` | ❌ NOT TESTED | |
-| `--help` | ❌ NOT TESTED | |
-| `--add-client --output-dir` | ❌ NOT TESTED | |
-| `--expiry-warn-days` / `OVPN_WARN_DAYS` | ❌ NOT TESTED | |
-| `--notify CMD` / `OVPN_NOTIFY_CMD` | ❌ NOT TESTED | |
+| `--version` | ✅ PASS | Prints `openvpn-manager v1.0.0` |
+| `--help` | ✅ PASS | Prints full usage text |
+| `--add-client bob --days 1 --output-dir /tmp` | ✅ PASS | `.ovpn` written to `/tmp/bob.ovpn` |
+| `OVPN_WARN_DAYS=400 --status` | ✅ PASS | Warns both clients expiring within 400 days |
+| `--notify 'echo NOTIFIED:'` | ✅ PASS | No expired clients, exits 0 cleanly |
 | `--revoke-expired` (live, not dry-run) | ❌ NOT TESTED | |
 
 ---
@@ -78,8 +83,8 @@ rm -f /tmp/openvpn-test.pem
 
 | # | Option | Status | Notes |
 |---|--------|--------|-------|
-| 1 | Add client | ❌ NOT TESTED | |
-| 2 | Bulk add clients | ❌ NOT TESTED | |
+| 1 | Add client | ✅ PASS | Created `menutest.ovpn` successfully |
+| 2 | Bulk add clients | ✅ PASS | Created `bulkA`, `bulkB` — `2 client(s) created` |
 | 3 | Revoke client | ❌ NOT TESTED | |
 | 4 | Bulk revoke | ❌ NOT TESTED | |
 | 5 | Revoke all expired | ❌ NOT TESTED | |
@@ -103,7 +108,7 @@ rm -f /tmp/openvpn-test.pem
 | 23 | Change port/protocol | ❌ NOT TESTED | |
 | 24 | List revoked clients | ❌ NOT TESTED | |
 
-**Next to test: Menu option 1 (Add client)**
+**Next to test: Menu option 3 (Revoke client)**
 
 ---
 
