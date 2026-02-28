@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-02-28
+
+### Fixed
+- AL2023: `curl-minimal` conflicts with `curl` — removed `curl`, added `--allowerasing` to `dnf install`
+- EasyRSA `build-server-full` and `build-client-full` missing `--batch` flag causing interactive prompt
+- `check_db_integrity` exits 1 under `set -e` when DB is clean — replaced `&&` with `if-then`
+- `local` keyword used outside function in CLI dispatch block — replaced with plain variable assignments
+- DNS value in `show_status` had trailing `"` from `push "dhcp-option DNS ..."` line — stripped with `gsub`
+- `easyrsa revoke` ran from wrong directory (PKI not found) — added `cd "$EASYRSA_DIR"` in `do_revoke` and menu option 8
+- Menu 10 reload called `systemctl reload` directly (fails on AL2023) — now uses `reload_service()` with restart fallback
+- Menu 11 restore: `pipefail` caused `tar | grep` validation to fail on valid archives — neutralised tar exit code
+- Menu 11 restore: `err` called on validation/extract failure exits script mid-menu — replaced with `warn + pause + continue`
 ## [1.2.0] - 2025-07-01
 
 ### Added

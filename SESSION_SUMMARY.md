@@ -20,28 +20,15 @@ Test all 24 menu options + all CLI flags on the live EC2 instance. Fix every bug
 
 ---
 
-## EC2 Test Instance (RUNNING — COSTS MONEY)
-- **Instance ID**: `i-01aaacbfdb40bf30d`
-- **Region**: `ap-south-1`
-- **Public IP**: `13.203.224.164`
-- **AMI**: Amazon Linux 2023
-- **Type**: t3.micro
-- **Key**: `/tmp/openvpn-test.pem`
-- **Key pair name**: `openvpn-test`
-- **Security group**: `sg-0d4a24bcad592cb2a`
+## EC2 Test Instance — TERMINATED ✅
+- Instance `i-01aaacbfdb40bf30d` — terminated
+- Key pair `openvpn-test` — deleted
+- Security group `sg-0d4a24bcad592cb2a` — deleted
+- `/tmp/openvpn-test.pem` — deleted
 
-**SSH:**
-```bash
-ssh -i /tmp/openvpn-test.pem -o StrictHostKeyChecking=no ec2-user@13.203.224.164
-```
-
-**Terminate when done:**
-```bash
-aws --profile bahubali --region ap-south-1 ec2 terminate-instances --instance-ids i-01aaacbfdb40bf30d
-aws --profile bahubali --region ap-south-1 ec2 delete-security-group --group-id sg-0d4a24bcad592cb2a
-aws --profile bahubali --region ap-south-1 ec2 delete-key-pair --key-name openvpn-test
-rm -f /tmp/openvpn-test.pem
-```
+**Post-restore verification passed:**
+- Service active, `testclient` in DB, `.ovpn` intact (600 perms, all sections present)
+- Client cert verified against CA, CRL valid, no revoked certs
 
 ---
 
@@ -88,26 +75,26 @@ rm -f /tmp/openvpn-test.pem
 | 4 | Bulk revoke | ✅ PASS | Revoked `bob` + `bulk1` — `2 client(s) revoked` |
 | 5 | Revoke all expired | ✅ PASS | Revoked `expiredtest` (backdated to 2020) — `1 expired client(s) revoked` |
 | 6 | Show server status | ✅ PASS | Port/Protocol/Cipher/Version/Connected all shown correctly |
-| 7 | Remove OpenVPN | ❌ NOT TESTED | Test last — destructive |
+| 7 | Remove OpenVPN | ✅ PASS | Cleanly removed all files, services, iptables rules |
 | 8 | Renew client cert | ✅ PASS | Renewed `testclient` — new `.ovpn` created |
 | 9 | Client connection history | ✅ PASS | No connections yet — headers shown correctly |
 | 10 | Restart/Reload | ✅ PASS | Reload falls back to restart (fixed), restart works |
-| 11 | Backup & Restore | ✅ PASS | Backup created, restore from list works (2 bugs fixed) |
-| 12 | QR code | ❌ NOT TESTED | |
-| 13 | Change client expiry | ❌ NOT TESTED | |
-| 14 | Disconnect client | ❌ NOT TESTED | |
-| 15 | View live logs | ❌ NOT TESTED | |
-| 16 | Update EasyRSA | ❌ NOT TESTED | |
-| 17 | Install auto-renewal timer | ❌ NOT TESTED | |
-| 18 | Export via SCP | ❌ NOT TESTED | |
-| 19 | Rename client | ❌ NOT TESTED | |
-| 20 | Bandwidth usage | ❌ NOT TESTED | |
-| 21 | Rotate tls-crypt key | ❌ NOT TESTED | |
-| 22 | Test connectivity | ❌ NOT TESTED | |
-| 23 | Change port/protocol | ❌ NOT TESTED | |
-| 24 | List revoked clients | ❌ NOT TESTED | |
+| 11 | Backup & Restore | ✅ PASS | Backup created; restore from list ✅; restore from path ✅ (2 bugs fixed) |
+| 12 | QR code | ✅ PASS | QR shown for `bulk2` |
+| 13 | Change client expiry | ✅ PASS | `bulk2` expiry updated to 2028-02-28 |
+| 14 | Disconnect client | ✅ PASS | No clients connected — handled gracefully |
+| 15 | View live logs | ✅ PASS | Manager log tail starts correctly |
+| 16 | Update EasyRSA | ✅ PASS | Re-downloaded and replaced binary |
+| 17 | Install auto-renewal timer | ✅ PASS | Timer installed and enabled |
+| 18 | Export via SCP | ✅ PASS | Empty destination skips gracefully |
+| 19 | Rename client | ✅ PASS | `bulk2` → `bulk2renamed` |
+| 20 | Bandwidth usage | ✅ PASS | Headers shown, no connected clients |
+| 21 | Rotate tls-crypt key | ✅ PASS | Key rotated, warning shown to regenerate .ovpn files |
+| 22 | Test connectivity | ✅ PASS | UDP port warn expected (nc uses TCP), tunnel reachable |
+| 23 | Change port/protocol | ✅ PASS | Port changed to 1194/udp (same value, confirmed working) |
+| 24 | List revoked clients | ✅ PASS | Lists alice, bob, menutest, bulk1, expiredtest |
 
-**Next to test: Menu option 12 (QR code)**
+**✅ ALL 24 MENU OPTIONS TESTED AND PASSING**
 
 ---
 
@@ -136,11 +123,9 @@ ssh -i /tmp/openvpn-test.pem -o StrictHostKeyChecking=no ec2-user@13.203.224.164
 
 ---
 
-## Next Steps (in order)
-1. Test remaining CLI flags (`--version`, `--help`, `--output-dir`, `--expiry-warn-days`, `--notify`)
-2. Test all 24 menu options one by one
-3. Terminate EC2 instance after all tests pass
-4. Tag `v1.4.0` to trigger release workflow
+## Next Steps
+1. Update CHANGELOG.md with all fixes from this session
+2. Tag `v1.4.0` to trigger release workflow
 
 ---
 
