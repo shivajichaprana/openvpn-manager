@@ -1075,11 +1075,8 @@ else
             [[ "$svc_action" == "0" ]] && continue
             [[ -z "$svc_action" ]] && svc_action=1
             if [[ "$svc_action" == "1" ]]; then
-                if systemctl reload "$SVC"; then
-                    ok "OpenVPN reloaded."
-                else
-                    err "Reload failed."
-                fi
+                reload_service
+                ok "OpenVPN reloaded."
                 log "OpenVPN reloaded."
             elif [[ "$svc_action" == "2" ]]; then
                 test_server_config
