@@ -2,19 +2,54 @@
 
 [![ShellCheck](https://github.com/shivajichaprana/openvpn-manager/actions/workflows/shellcheck.yml/badge.svg)](https://github.com/shivajichaprana/openvpn-manager/actions/workflows/shellcheck.yml)
 [![Latest Release](https://img.shields.io/github/v/release/shivajichaprana/openvpn-manager)](https://github.com/shivajichaprana/openvpn-manager/releases/latest)
+![Shell](https://img.shields.io/badge/shell-bash-4EAA25.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-A hardened OpenVPN server installer and management script for Linux.
+Hardened OpenVPN server installer and management script for Linux. One script, 24 operations — from zero to a production VPN server with enterprise-grade security defaults, certificate lifecycle management, and full audit logging.
+
+## Security Hardening (Out of the Box)
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                  Security Architecture                    │
+│                                                          │
+│  Cryptography          Transport          Access Control │
+│  ┌──────────────┐    ┌──────────────┐    ┌────────────┐ │
+│  │ ECC P-256     │    │ TLS 1.2+     │    │ Per-client │ │
+│  │ (prime256v1)  │    │ tls-crypt    │    │ certificates│ │
+│  │ AES-256-GCM   │    │ HMAC auth    │    │ with expiry│ │
+│  │ SHA-256 HMAC   │    │ PFS enabled  │    │ CRL revoke │ │
+│  └──────────────┘    └──────────────┘    └────────────┘ │
+│                                                          │
+│  Certificate Lifecycle    Audit & Compliance             │
+│  ┌──────────────────┐    ┌────────────────────────────┐ │
+│  │ Auto-renewal      │    │ Connection history logging │ │
+│  │ Expiry warnings   │    │ Bandwidth per client      │ │
+│  │ Bulk revocation   │    │ Manager audit log          │ │
+│  │ CRL auto-update   │    │ Live log viewer           │ │
+│  └──────────────────┘    └────────────────────────────┘ │
+└──────────────────────────────────────────────────────────┘
+```
+
+Every installation enforces ECC keys over RSA, AES-256-GCM encryption, TLS 1.2 minimum with tls-crypt for DDoS mitigation, and Perfect Forward Secrecy. No manual hardening required — these are the defaults.
 
 ## Features
 
+**24 management operations** from a single interactive menu:
+
 - Automated OpenVPN installation with security hardening
 - ECC keys (prime256v1), AES-256-GCM, TLS 1.2+, tls-crypt
-- Client management: add, revoke, renew, bulk operations
-- Certificate expiry tracking and warnings
-- Backup & restore
-- Live log viewer
+- Client management: add, revoke, renew, rename, bulk operations
+- Certificate expiry tracking and auto-renewal timer (systemd)
+- Backup & restore with timestamped archives
+- Live log viewer (OpenVPN, systemd journal, manager log)
 - QR code generation for mobile import
-- Multi-distro support
+- Multi-distro support (7 distributions)
+- Bandwidth monitoring per connected client
+- tls-crypt key rotation for compromise recovery
+- Port/protocol switching without reinstallation
+- SCP export for remote .ovpn distribution
+- Connectivity self-test
 
 ## Supported Distributions
 
